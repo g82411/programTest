@@ -1,0 +1,24 @@
+{
+  "name": "dcard",
+  "version": "1.0.0",
+  "description": "Dcard programing test",
+  "main": "index.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "mocha"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chai-http": "^4.3.0",
+    "express": "^4.17.1",
+    "redis": "^2.8.0"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.1.4"
+  },
+  "standard": {
+    "env": [ "mocha" ]
+  }
+}
