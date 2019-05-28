@@ -1,50 +1,76 @@
 const express = require('express')
 const app = express()
-const moment = require('moment')
+const redis = require('redis')
+const config = require('./config.json')
 
-const rateLimitQueue = {}
+const REDISHOST = process.env.REDISHOST || config.redis.host
+const REDISPORT = process.env.REDISPORT || config.redis.port
 
+const redisClient = redis.createClient(REDISPORT, REDISHOST)
+const lock = require('redis-lock')(redisClient)
+
+app.enable('trust proxy')
 app.use((req, res, next) => {
   const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
   if (ip) {
-    if (rateLimitQueue[ip] && rateLimitQueue[ip].length) {
-      const nowTime = moment().unix()
-      const rateQueue = rateLimitQueue[ip].filter(unixtime => unixtime > nowTime)
-      if (rateQueue.length >= 60) {
-        rateLimitQueue[ip] = [ ...rateQueue ]
-        res.status(429).send('Error')
-      } else {
-        const newQueuedTime = moment().add(1, 'm').unix()
-        rateLimitQueue[ip] = [ ...rateQueue, newQueuedTime ]
-        next()
-      }
-    } else {
-      const newQueuedTime = moment().add(1, 'm').unix()
-      rateLimitQueue[ip] = [ newQueuedTime ]
-      next()
-    }
+    lock(ip, (done) => {
+      redisClient.hgetall(ip, (err, cache) => {
+        if (err) {
+          console.log(err)
+          res.status(500).send('Server side error')
+        }
+        if (cache) {
+          const { counter: counterString } = cache
+          const counter = parseInt(counterString)
+          if (counter >= 60) {
+            done()
+            res.status(429).send('Error')
+          } else {
+            const newCounter = counter + 1
+            redisClient.hmset(ip, { counter: newCounter })
+            done()
+            next()
+          }
+        } else {
+          redisClient.hmset(ip, { counter: 1 })
+          redisClient.expire(ip, 60)
+          done()
+          next()
+        }
+      })
+    })
   } else {
     res.status(400).send(`Can't get remote address`)
   }
 })
 
-app.get('/healthCheak', (req, res) => {
+app.get('/healthCheck', (req, res) => {
   res.status(408).send()
 })
 
 app.get('/', (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
-  const nowTime = moment().unix()
-  const rateQueue = rateLimitQueue[ip].filter(unixtime => unixtime > nowTime)
-  if (rateQueue.length <= 60) {
-    res.status(200).send(`${rateQueue.length}`)
-  } else {
-    res.status(429).send('Error')
-  }
+  redisClient.hgetall(ip, (err, cache) => {
+    if (err) {
+      console.log(err)
+      res.status(500).send('Server side error')
+    }
+    if (cache) {
+      const { counter: counterString } = cache
+      const counter = parseInt(counterString)
+      if (counter > 60) {
+        res.status(429).send('Error')
+      } else {
+        res.status(200).send(`${counter}`)
+      }
+    } else {
+      res.status(200).send(`0`)
+    }
+  })
 })
-
-app.listen(3000, function () {
-  console.log('Example app listening on port 3000!')
+const port = process.env.PORT || 8080
+app.listen(port, function () {
+  console.log(`App listening on port ${port}!`)
 })
 
 module.exports = app

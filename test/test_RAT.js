@@ -9,15 +9,10 @@ chai.use(chaiHttp)
 
 describe('App', () => {
   describe('/healthCheak', () => {
-    beforeEach(() => {
-      app = require('../app')
-    })
-    afterEach(() => {
-      app.close()
-    })
     it('healthCheak status 408', (done) => {
       chai.request(app)
-        .get('/healthCheak')
+        .get('/healthCheck')
+        .set('X-Forwarded-For', '192.168.2.1')
         .end((err, res) => {
           expect(err).to.be.a('null')
           expect(res).to.have.status(408)
@@ -27,7 +22,7 @@ describe('App', () => {
     it('Send 100 request', (done) => {
       let requests = []
       for (let i = 0; i < 100; i++) {
-        requests.push(chai.request(app).get('/healthCheak'))
+        requests.push(chai.request(app).get('/healthCheck').set('X-Forwarded-For', '192.168.3.1'))
       }
       Promise.all(requests)
         .then((response) => {
@@ -38,11 +33,11 @@ describe('App', () => {
           expect(status429).to.have.lengthOf(40)
           done()
         })
-    })
+    }).timeout(8000)
     it('Send 60 request', (done) => {
       let requests = []
       for (let i = 0; i < 60; i++) {
-        requests.push(chai.request(app).get('/healthCheak'))
+        requests.push(chai.request(app).get('/healthCheck').set('X-Forwarded-For', '192.168.4.1'))
       }
       Promise.all(requests)
         .then((response) => {
@@ -51,11 +46,11 @@ describe('App', () => {
           expect(status408).to.have.lengthOf(60)
           done()
         })
-    })
+    }).timeout(8000)
     it('Get requests number', (done) => {
       let requests = []
       for (let i = 0; i < 60; i++) {
-        requests.push(chai.request(app).get('/'))
+        requests.push(chai.request(app).get('/').set('X-Forwarded-For', '192.168.5.1'))
       }
       Promise.all(requests)
         .then((response) => {
@@ -68,6 +63,6 @@ describe('App', () => {
           expect(status200).to.have.lengthOf(60)
           done()
         })
-    })
+    }).timeout(8000)
   })
 })

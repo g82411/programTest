@@ -2,9 +2,9 @@
   "name": "dcard",
   "version": "1.0.0",
   "description": "Dcard programing test",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "node ./app.js",
     "test": "mocha"
   },
   "author": "",
@@ -14,7 +14,8 @@
     "express": "^4.17.1",
     "moment": "^2.24.0",
     "node-cron": "^2.0.3",
-    "redis": "^2.8.0"
+    "redis": "^2.8.0",
+    "redis-lock": "^0.1.4"
   },
   "devDependencies": {
     "chai": "^4.2.0",
